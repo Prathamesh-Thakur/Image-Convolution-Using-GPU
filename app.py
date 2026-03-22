@@ -119,16 +119,29 @@ if uploaded_file is not None:
                     # Calculate radius
                     radius = filter_size // 2
 
+                    # Initialize start and end time variables for gpu
+
                     # Record start time for GPU
-                    gpu_start_time = time.perf_counter()
+                    gpu_start_time = 0.0
+                    gpu_end_time = 0.0
 
                     # Grayscale image
                     if image.ndim == 2:
+                        # Record start time for GPU
+                        gpu_start_time = time.perf_counter()
+                        
                         # Launch the 2d kernel
                         convolute_2d[(blocks_x, blocks_y), (threads, threads)](gpu_image, gpu_filter, out_image, radius)
 
                         # Synchronize
                         cuda.synchronize()
+
+                        # Copy output array to cpu
+                        ans_image = out_image.copy_to_host()
+
+                        # Record end time for GPU
+                        gpu_end_time = time.perf_counter()
+
                     
                     # RGB image
                     elif image.ndim == 3:
@@ -137,24 +150,36 @@ if uploaded_file is not None:
                             # Remove last dimension
                             gpu_image = np.squeeze(gpu_image, axis = -1)
 
+                            # Record start time for GPU
+                            gpu_start_time = time.perf_counter()
+
                             # Launch the 2d kernel
                             convolute_2d[(blocks_x, blocks_y), (threads, threads)](gpu_image, gpu_filter, out_image, radius)
 
                             # Synchronize
                             cuda.synchronize()
+
+                            # Copy output array to cpu
+                            ans_image = out_image.copy_to_host()
+
+                            # Record end time for GPU
+                            gpu_end_time = time.perf_counter()
                         
                         elif image.shape[2] > 2:
+                            # Record start time for GPU
+                            gpu_start_time = time.perf_counter()
+
                             # Launch the 3d kernel
                             convolute_3d[(blocks_x, blocks_y), (threads, threads)](gpu_image, gpu_filter, out_image, radius)
 
                             # Synchronize
                             cuda.synchronize()
-                        
-                    # Copy output array to cpu
-                    ans_image = out_image.copy_to_host()
 
-                    # Record end time for GPU
-                    gpu_end_time = time.perf_counter()
+                            # Copy output array to cpu
+                            ans_image = out_image.copy_to_host()
+
+                            # Record end time for GPU
+                            gpu_end_time = time.perf_counter()
 
                     # Calculcate GPU time
                     gpu_time = gpu_end_time - gpu_start_time
